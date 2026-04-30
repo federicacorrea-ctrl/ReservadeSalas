@@ -94,7 +94,9 @@
     .form-label { font-size: 12px; font-weight: 600; color: var(--tx); }
     .form-input, .form-select, .form-textarea { border: 1px solid var(--bd); border-radius: 6px; padding: 8px 12px; font-family: var(--font); font-size: 13px; color: var(--tx); transition: border-color .15s; }
     .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--h500); box-shadow: 0 0 0 3px rgba(73, 107, 227, 0.1); }
-    .form-textarea { resize: vertical; min-height: 60px; }
+    .form-textarea { resize: vertical; min-height: 80px; }
+
+    #room-booking-form .form-textarea { resize: vertical; min-height: 60px; }
     .modal-footer { padding: 14px 20px; border-top: 1px solid var(--bdl); display: flex; gap: 10px; justify-content: flex-end; }
 
     /* ROOMS VIEW */
@@ -141,11 +143,11 @@
 <body>
 <div id="app">
   <header id="hdr">
-    <div class="logo">
+    <div id="logo-section" class="logo" style="display: none;">
       <div class="logo-circle">hu</div>
       <span class="logo-wordmark">humand</span>
     </div>
-    <div class="hdiv"></div>
+    <div class="hdiv" id="hdiv-sep" style="display: none;"></div>
     <div class="header-controls">
       <button class="nav-btn" onclick="navPrev()" title="Anterior">◀</button>
       <button class="nav-btn" onclick="goToday()" style="border: 1px solid var(--bd); background: var(--n50);">Hoy</button>
@@ -216,7 +218,12 @@
 
             <div class="form-group">
               <label class="form-label">Quién reserva</label>
-              <input id="room-requester" type="text" class="form-input" placeholder="Tu nombre">
+              <input id="room-requester" type="text" class="form-input">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Detalles de la reunión</label>
+              <textarea id="room-details" class="form-textarea" placeholder="Equipamiento, disposición, cantidad de personas, etc."></textarea>
             </div>
 
             <div class="booking-buttons">
@@ -271,9 +278,9 @@
 <script>
 // ── CONFIG ──
 const ROOMS = [
-  { id: 'room-a', name: 'Sala A', color: '#496be3' },
-  { id: 'room-b', name: 'Sala B', color: '#28c040' },
-  { id: 'room-c', name: 'Sala C', color: '#d42e2e' },
+  { id: 'room-a', name: 'Sala 1 - 3er Piso', color: '#496be3' },
+  { id: 'room-b', name: 'Sala 2 - 3er Piso', color: '#28c040' },
+  { id: 'room-c', name: 'Sala 4to Piso', color: '#d42e2e' },
 ];
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DAYS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
@@ -289,6 +296,7 @@ let state = {
   currentDate: new Date(),
   selectedDate: null,
   view: 'month',
+  restrictedMode: false,  // Si es true, no muestra opciones de cambio
 };
 
 // ── HELPERS ──
@@ -722,6 +730,7 @@ function submitRoomBooking(event) {
   const startTime = document.getElementById('room-start-time').value;
   const endTime = document.getElementById('room-end-time').value;
   const requester = document.getElementById('room-requester').value.trim();
+  const details = document.getElementById('room-details').value.trim();
   const roomId = state.currentRoom || 'room-a';
 
   if (!name || !date || !startTime || !endTime) {
@@ -743,7 +752,7 @@ function submitRoomBooking(event) {
     startTime: startTime,
     endTime: endTime,
     requester: requester || 'N/A',
-    notes: `Reserva desde Salas`,
+    notes: details || '',
   });
 
   setReservations(roomId, reservations);
@@ -799,8 +808,32 @@ function init() {
   const params = getUrlParams();
   state.mode = params.mode;
   state.roomId = getRoomId(params.sala);
+  state.currentRoom = state.roomId;
   state.currentDate = new Date();
   state.currentDate.setHours(0, 0, 0, 0);
+
+  // Detectar modo restringido: si viene con parámetros específicos, es un iframe independiente
+  state.restrictedMode = params.mode && params.sala;
+
+  // En modo restringido, ocultar logo y botones de navegación
+  if (state.restrictedMode) {
+    document.getElementById('logo-section').style.display = 'none';
+    document.getElementById('hdiv-sep').style.display = 'none';
+    document.querySelector('.view-switcher').style.display = 'none';
+
+    // Si es modo admin, mostrar la vista de salas (pero solo para esa sala)
+    if (state.mode === 'admin') {
+      switchView('rooms');
+      // Ocultar el selector de sala
+      document.getElementById('room-select').parentElement.style.display = 'none';
+      // Fijar la sala
+      document.getElementById('room-select').value = state.roomId;
+    }
+  } else {
+    // Modo completo: mostrar logo y opciones
+    document.getElementById('logo-section').style.display = 'flex';
+    document.getElementById('hdiv-sep').style.display = 'block';
+  }
 
   initSampleData();
   updateModeInHeader();
