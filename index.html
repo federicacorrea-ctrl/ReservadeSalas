@@ -64,6 +64,17 @@
     .event-time { font-size: 10px; opacity: 0.9; }
     .event-requester { font-size: 9px; opacity: 0.8; }
 
+    /* MODAL */
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+    .modal.show { display: flex; }
+    .modal-box { background: var(--surf); border-radius: 12px; padding: 20px; max-width: 400px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+    .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 15px; color: var(--tx); }
+    .modal-field { margin-bottom: 12px; }
+    .modal-label { font-size: 12px; font-weight: 600; color: var(--tx2); }
+    .modal-value { font-size: 13px; color: var(--tx); margin-top: 4px; }
+    .modal-close { background: var(--n100); color: var(--tx); border: none; border-radius: 6px; padding: 8px 14px; cursor: pointer; font-weight: 600; width: 100%; margin-top: 15px; }
+    .modal-close:hover { background: var(--n200); }
+
     /* BOOKING PANEL (admin only) */
     .booking-panel { width: 350px; background: var(--surf); border-left: 1px solid var(--bd); padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
     .booking-panel h3 { font-size: 13px; font-weight: 700; color: var(--tx); }
@@ -167,6 +178,30 @@
           <button type="submit" class="btn btn-primary">Reservar</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- MODAL para ver detalles de reserva -->
+  <div class="modal" id="event-modal">
+    <div class="modal-box">
+      <div class="modal-title" id="modal-event-name"></div>
+      <div class="modal-field">
+        <div class="modal-label">Horario</div>
+        <div class="modal-value" id="modal-event-time"></div>
+      </div>
+      <div class="modal-field">
+        <div class="modal-label">Fecha</div>
+        <div class="modal-value" id="modal-event-date"></div>
+      </div>
+      <div class="modal-field">
+        <div class="modal-label">Quién reserva</div>
+        <div class="modal-value" id="modal-event-requester"></div>
+      </div>
+      <div class="modal-field" id="modal-details-group" style="display:none;">
+        <div class="modal-label">Detalles</div>
+        <div class="modal-value" id="modal-event-details"></div>
+      </div>
+      <button class="modal-close" onclick="closeEventModal()">Cerrar</button>
     </div>
   </div>
 </div>
@@ -292,7 +327,7 @@ function renderWeek() {
       const startMinutes = startH * 60 + startM - 8 * 60;
       const durationMinutes = (endH * 60 + endM) - (startH * 60 + startM);
 
-      html += `<div class="event-block reserved" style="top:${startMinutes}px; height:${durationMinutes}px;" title="${r.name} - ${r.requester}">
+      html += `<div class="event-block reserved" style="top:${startMinutes}px; height:${durationMinutes}px;" onclick="showEventModal({name:'${r.name}',startTime:'${r.startTime}',endTime:'${r.endTime}',requester:'${r.requester}',notes:'${(r.notes || '').replace(/'/g, "\\'")}'},'${dateStr}')">
         <div class="event-name">${r.name}</div>
         <div class="event-time">${r.startTime} - ${r.endTime}</div>
         <div class="event-requester">${r.requester || 'N/A'}</div>
@@ -331,7 +366,7 @@ function renderDay() {
     const top = (startH - 8) * 60 + startM;
     const height = (endH * 60 + endM) - (startH * 60 + startM);
 
-    html += `<div class="event-block reserved" style="top: ${top}px; left: 8px; right: 8px; height: ${height}px;">
+    html += `<div class="event-block reserved" style="top: ${top}px; left: 8px; right: 8px; height: ${height}px;" onclick="showEventModal({name:'${r.name}',startTime:'${r.startTime}',endTime:'${r.endTime}',requester:'${r.requester}',notes:'${(r.notes || '').replace(/'/g, "\\'")}'},'${dateStr}')">
       <div class="event-name">${r.name}</div>
       <div class="event-time">${r.startTime} - ${r.endTime}</div>
       <div class="event-requester">${r.requester || 'N/A'}</div>
@@ -370,7 +405,7 @@ function renderMonth() {
     html += `<div style="background: ${isToday ? 'var(--h500)' : 'var(--surf)'}; padding: 8px; min-height: 80px; color: ${isToday ? 'white' : 'var(--tx)'}; opacity: ${isOtherMonth ? '0.5' : '1'}; border-right: 1px solid var(--bd); border-bottom: 1px solid var(--bd); overflow: hidden;">
       <div style="font-weight: 600; margin-bottom: 4px;">${d.getDate()}</div>
       <div style="font-size: 10px;">
-        ${reservations.slice(0, 2).map(r => `<div style="background: var(--r600); color: white; padding: 2px 4px; border-radius: 3px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${r.startTime} ${r.name}</div>`).join('')}
+        ${reservations.slice(0, 2).map(r => `<div style="background: var(--r600); color: white; padding: 2px 4px; border-radius: 3px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;" onclick="showEventModal({name:'${r.name}',startTime:'${r.startTime}',endTime:'${r.endTime}',requester:'${r.requester}',notes:'${(r.notes || '').replace(/'/g, "\\'")}'},'${dateStr}')">${r.startTime} ${r.name}</div>`).join('')}
         ${reservations.length > 2 ? `<div style="font-size: 9px; color: var(--tx2);">+${reservations.length - 2}</div>` : ''}
       </div>
     </div>`;
@@ -444,6 +479,30 @@ function updateEndTimes() {
     endInput.value = `${String(Math.min(endH, 18)).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     endInput.min = startTime;
   }
+}
+
+function showEventModal(event, dateStr) {
+  document.getElementById('modal-event-name').textContent = event.name;
+  document.getElementById('modal-event-time').textContent = `${event.startTime} - ${event.endTime}`;
+
+  const d = new Date(dateStr);
+  const dateFormatted = `${d.getDate()} de ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  document.getElementById('modal-event-date').textContent = dateFormatted;
+
+  document.getElementById('modal-event-requester').textContent = event.requester || 'N/A';
+
+  if (event.notes) {
+    document.getElementById('modal-details-group').style.display = 'block';
+    document.getElementById('modal-event-details').textContent = event.notes;
+  } else {
+    document.getElementById('modal-details-group').style.display = 'none';
+  }
+
+  document.getElementById('event-modal').classList.add('show');
+}
+
+function closeEventModal() {
+  document.getElementById('event-modal').classList.remove('show');
 }
 
 function submitBooking(event) {
